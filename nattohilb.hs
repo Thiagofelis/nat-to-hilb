@@ -1,20 +1,62 @@
 import System.Environment
 import System.IO
 import Data.List
+import Data.Maybe
 
 
 data NatDed = Var Int
             | App NatDed NatDed | Abs Int NatDed
             | Prod NatDed NatDed | Pi1 NatDed | Pi2 NatDed
             | Inl NatDed | Inr NatDed | Case NatDed NatDed NatDed
-            | Exfalso NatDed deriving (Eq,Read, Show)
+            | Exfalso NatDed deriving (Eq, Read, Show)
 
 data Hilb = Ax Int
           | MP Hilb Hilb
           | S | K
           | Iand | ERand | ELand
           | IRor | ILor  | Eor
-          | ExF deriving (Eq,Read, Show)
+          | ExF deriving (Eq, Read, Show)
+
+data Type = Base Int
+          | Arrow Type Type
+          | Product Type Type
+          | Sum Type Type
+          | Bot deriving (Eq, Read, Show)
+
+data HollowType = Hole Int
+                | ArrowH HollowType HollowType
+                | ProductH HollowType HollowType
+                | SumH HollowType HollowType
+                | BotH deriving (Eq, Read, Show)
+                
+
+data HollowHilb = AxH Int HollowType
+          | MPH HollowHilb HollowHilb HollowType
+          | SH HollowType | KH HollowType
+          | IandH HollowType | ERandH HollowType | ELandH HollowType
+          | IRorH HollowType | ILorH HollowType  | EorH HollowType
+          | ExFH HollowType deriving (Eq, Read, Show)
+
+data TypedHilb = AxT Int Type
+               | MPT TypedHilb TypedHilb Type
+               | ST Type | KT Type
+               | IandT Type | ERandT Type | ELandT Type
+               | IRorT Type | ILorT Type  | EorT Type
+               | ExFT Type deriving (Eq, Read, Show)
+
+
+--data Ctx = Empty
+--         | Cons Type Int
+
+type Ctx = Hilb -> Maybe Type
+
+--data UniEq = Null
+--           | Cons Type Type UniEq
+
+data UnifyList = Nil
+               | Cons HollowType HollowType UnifyList
+
+          
 
 allvar :: NatDed -> Int -> Bool
 allvar (Var y) x = if (x == y) then True else False
@@ -96,6 +138,93 @@ red (MP x y) = let reda = red x in
                      MP (MP (MP Eor (MP IRor a)) b) c -> red (MP c a)
                      MP a b -> MP a b
 red c = c
+
+appearsin :: HollowType -> Int -> Bool
+appearsin (Hole n) m = (n == m)
+appearsin (ArrowH x y) m = or [appearsin x m, appearsin y m]
+appearsin (ProductH x y) m = or [appearsin x m, appearsin y m]
+appearsin (SumH x y) m = or [appearsin x m, appearsin y m]
+appearsin BotH m = False
+
+subs :: HollowType -> Int -> HollowType -> HollowType
+subs (Hole n) m y = If (n == m) then y else (Hole n)
+subs (ArrowH x1 x2) m y = ArrowH (subs x1 m y) (subs x2 m y)
+subs (ProductH x1 x2) m y = ProductH (subs x1 m y) (subs x2 m y)
+subs (SumH x1 x2) m y = SumH (subs x1 m y) (subs x2 m y)
+subs BotH m y = BotH
+
+unify :: [(HollowType, HollowType)] -> [(HollowType, HollowType)] -> Maybe [(HollowType, HollowType)]
+unify l1 ((x, Hole n) : l2) = unify l1 ((Hole n, x) : l2)
+unify l1 (((ArrowH x1 x2), y) : l2) = case y of
+                                        ArrowH y1 y2 -> unify l1 ((x1, y1) : (x2, y2) : l2)
+                                        _ -> Nothing
+unify l1 (((ProductH x1 x2), y) : l2) = case y of
+                                          ProductH y1 y2 -> unify l1 ((x1, y1) : (x2, y2) : l2)
+                                          _ -> Nothing
+unify l1 (((SumH x1 x2), y) : l2) = case y of
+                                      SumH y1 y2 -> unify l1 ((x1, y1) : (x2, y2) : l2)
+                                      _ -> Nothing
+unify l1 ((BotH, y) : l2) = case x of
+                              BotH -> unify l1 l2
+                              _ -> Nothing
+unify l1 ((Hole n, x) : l2) = if (appearsin x n) then
+                                Nothing
+                              else
+                                let mapsubs = (map (\w -> let (w1, w2) = w in (subs w1 n x, subs w2 n x))) in
+                                  let appearsinlist = (\lx -> or $ map (\w -> let (w1, w2) = w in or [appearsin w1 n, appearsin w2 n]) lx) in
+                                    if (not $ appearsinlist l1) then
+                                      unify ((Hole n, x) : l1) (mapsubs l2)
+                                    else
+                                      unify [] ((mapsubs l1) ++ (Hole n, x) ++ (mapsubs l2))
+unify l1 [] = Just l1 -- end condition
+
+
+typeinf :: Hilb -> Int -> Maybe (HollowHilb, Int)
+typeinf (Ax x) f n = Nothing -- we reject open terms
+typeinf K f n = Just (KH (ArrowH
+                         (Hole n)
+                         (ArrowH
+                           (Hole (n + 1))
+                           (Hole n))),                         
+                     n + 2)
+--typeinf S f = (SH (ArrowH (
+typeinf Iand f n = Just (IandH (ArrowH
+                               (Hole n)
+                               (ArrowH
+                                (Hole (n + 1))
+                                (ProductH
+                                 (Hole n)
+                                 (Hole (n + 1))))),
+                        n + 2)
+typeinf (MP a b) f n = do
+  resa <- typeinf a f n
+  let (ta,na) = resa
+  resb <- typeinf b f na
+  let (tb, nb) = resb
+  return (matchholes ta tb, nb)
+  
+
+--typeinf (MP a b) f n = let (ta, m) = typeinf a f n in
+--                        let (tb, o) = typeinf b f m in
+--  a                        case ta of
+--                            _ 
+
+
+--putbases :: Hilb -> Int -> (HilbAnnotated, Int)
+--putbases (Ax x) n = (AxT x (Base n), n + 1)
+--putbases (MP a b) n = let (ta, m) = putbases a n in
+--                        let (tb, o) = putbases b m in
+--                          (MPT ta tb (Base o), o + 1)
+--putbases c n = case c of
+--                 K -> (KT (Base n) (Base (n + 1)), n + 2)
+--                 S -> (ST (Base n) (Base (n + 1)) (Base (n + 2)), n + 3)
+--                 Iand -> (IandT (Base n) (Base (n + 1)), n + 2)
+--                 ELand -> (ELandT (Base n) (Base (n + 1)), n + 2)
+--                 ERand -> (ERandT (Base n) (Base (n + 1)), n + 2)
+--                 Eor -> (EorT (Base n) (Base (n + 1)) (Base (n + 2)), n + 3)
+--                 ILor -> (ILorT (Base n) (Base (n + 1)), n + 1)
+--                 IRor -> (IRorT (Base n) (Base (n + 1)), n + 1)
+--                 ExF -> (ExFT (Base n), n + 1)
 
 
 -- proof of (not A \/ B) -> A -> B
