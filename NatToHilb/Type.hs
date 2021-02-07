@@ -7,7 +7,14 @@ data Type = Base Int
           | Arrow Type Type
           | Product Type Type
           | Sum Type Type
-          | Bot deriving (Eq, Read, Show)
+          | Bot deriving (Eq, Read)
+
+instance Show Type where
+  show (Base n) = show n
+  show (Arrow x y) = "(" ++ (show x) ++ " -> " ++ (show y) ++ ")"
+  show (Product x y) = "(" ++ (show x) ++ " /\\ " ++ (show y) ++ ")"
+  show (Sum x y) = "(" ++ (show x) ++ " \\/ " ++ (show y) ++ ")"
+  show Bot = "False"
 
 -- (appearsin x n) if (Base n) appears in x
 appearsin :: Type -> Int -> Bool

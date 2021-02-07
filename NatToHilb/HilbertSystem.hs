@@ -2,8 +2,7 @@ module NatToHilb.HilbertSystem where
 import Data.List
 import Data.Maybe
 
--- Hilbert System aka SKI calculus with additional constructors and
--- eliminators for AND, OR and FALSE
+-- Hilbert System aka SKI calculus with axioms for AND, OR and FALSE
 data Hilb = Ax Int
           | MP Hilb Hilb
           | S | K
@@ -17,16 +16,16 @@ hilbvar (Ax y) x = if (x == y) then True else False
 hilbvar (MP a b) x = or [hilbvar a x, hilbvar b x]
 hilbvar _ x = False
 
--- if a is a proof of A with a possible occurence of Ax n of type B, then
--- (abselim n a) returns a proof of B -> A in which Ax n does not appear.
+-- if a is a proof of A with possible occurences of Ax n of type B, then
+-- (combabstraction n a) returns a proof of B -> A in which Ax n does not appear.
 -- this is the algorithmic content of the proof of the deduction theorem
 -- for the Hilbert System
-abselim :: Int -> Hilb -> Hilb
-abselim x (Ax y) = if (y == x) then (MP (MP S K) K) else (MP K (Ax y))
-abselim x (MP a b) = if (hilbvar (MP a b) x)
-                     then (MP (MP S (abselim x a)) (abselim x b))
-                     else (MP K (MP a b))
-abselim x c = MP K c
+combabstraction :: Int -> Hilb -> Hilb
+combabstraction x (Ax y) = if (y == x) then (MP (MP S K) K) else (MP K (Ax y))
+combabstraction x (MP a b) = if (hilbvar (MP a b) x)
+                             then (MP (MP S (combabstraction x a)) (combabstraction x b))
+                             else (MP K (MP a b))
+combabstraction x c = MP K c
 
 -- eliminates cuts
 hilbred :: Hilb -> Hilb

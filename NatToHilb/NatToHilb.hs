@@ -8,7 +8,7 @@ import NatToHilb.NaturalDeduction
 nattohilb :: NatDed -> Hilb
 nattohilb (Var x) = Ax x
 nattohilb (App a b) = MP (nattohilb a) (nattohilb b)
-nattohilb (Abs y a) = abselim y (nattohilb a)
+nattohilb (Abs y a) = combabstraction y (nattohilb a)
 nattohilb (Prod a b) = MP (MP Iand (nattohilb a)) (nattohilb b)
 nattohilb (Pi1 a) = MP ELand (nattohilb a)
 nattohilb (Pi2 a) = MP ERand (nattohilb a)

@@ -42,7 +42,7 @@ rename (Inr a) x z = Inr (rename a x z)
 rename (Case a b c) x z = Case (rename a x z) (rename b x z) (rename c x z)
 rename (Exfalso a) x z = Exfalso (rename a x z)
 
--- (freevar a n) is true if (Var n) occurs free in a
+-- |(freevar a n) is true if (Var n) occurs free in a
 freevar :: NatDed -> Int -> Bool
 freevar (Var y) x = if (x == y) then True else False
 freevar (App a b) x = or [freevar a x, freevar b x]
