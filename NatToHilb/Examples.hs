@@ -13,7 +13,8 @@ test0 = Abs 0 (Abs 1 (Case
                       (Abs 3 (Exfalso
                                (App (Var 3) (Var 1)) ))
                       (Abs 4 (Var 4))))
--- proof of A -> (not A) -> B 
+-- proof of A -> (not A) -> B
+-- in particular, with B = False this shows A -> not not A
 test1 = Abs 0 (Abs 1 (Exfalso (App (Var 1) (Var 0))))
 -- A -> B -> A
 test2 = Abs 1 (Abs 2 (Var 1))
@@ -26,6 +27,7 @@ test5 = Abs 0 (Prod (Pi2 (Var 0)) (Pi1 (Var 0)))
 -- (False /\ B) -> C
 test6 = Abs 0 (Exfalso (Pi1 (Var 0)))
 -- (A /\ B) -> (A \/ B)
+-- most generally, this proves (A /\ B) -> (A \/ C)
 test7 = Abs 0 (Inl (Pi1 (Var 0)))
 -- A -> A
 test8 = Abs 3 (Var 3)
@@ -39,8 +41,40 @@ test9 = Abs 0 (Case
 -- A -> (A /\ A)
 test10 = Abs 0 (Prod (Var 0) (Var 0))
 
+-- (A \/ not A) -> ((A -> B) -> A) -> A
+-- from excluded middle we can deduce pierce's law
+-- most generally, this shows 
+-- (B \/ (A -> False)) -> ((A -> B) -> C) -> C
+test11 = Abs 0 (Abs 1 (Case
+                       (Var 0)
+                       (Abs 1 (Var 1))
+                       (Abs 2 (App
+                               (Var 1)
+                               (Abs 3
+                                 (Exfalso (App
+                                            (Var 2)
+                                            (Var 3))))))))
+
+-- ((((A \/ not A) -> False) -> A \/ not A) -> A \/ not A) -> A \/ not A
+-- from pierce's law we can deduce the excluded middle
+-- most generally, this proves
+-- ((((A \/ B) -> C) -> (D \/ (A -> C))) -> E) -> E
+test12 = Abs 0 (App
+                 (Var 0)
+                 (Abs 1 (Inr (Abs 2 (App
+                                      (Var 1)
+                                      (Inl (Var 2)))))))
+
+
+-- (A \/ not A) -> (not not A) -> A
+-- most generally, this actually proves (A \/ B) -> (not B) -> A
+test13 = Abs 0 (Abs 1 (Case
+                        (Var 0)
+                        (Abs 0 (Var 0))
+                        (Abs 2 (Exfalso (App (Var 1) (Var 2))))))
+
 proofs = [test0, test1, test2, test3, test4,
-          test5, test6, test7, test8, test9, test10]
+          test5, test6, test7, test8, test9, test10, test11, test12, test13]
 
 -- their translation to the hilbert system 
 
